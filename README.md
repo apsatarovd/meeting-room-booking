@@ -30,31 +30,31 @@
 
 ## Установка
 
-\`\`\`bash
+```bash
 git clone <repository-url>
 cd meeting-room-booking
 poetry install
-\`\`\`
+```
 
 ## Запуск
 
 ### Через Docker
 
-\`\`\`bash
+```bash
 docker-compose up --build
-\`\`\`
+```
 
 ### Локально
 
-\`\`\`bash
+```bash
 poetry run uvicorn app.main:app --reload
-\`\`\`
+```
 
 ## Примеры работы
 
 ### Регистрация
 
-\`\`\`bash
+```bash
 POST /api/auth/register
 Content-Type: application/json
 
@@ -63,11 +63,11 @@ Content-Type: application/json
   "password": "secure123",
   "full_name": "Иван Иванов"
 }
-\`\`\`
+```
 
 ### Создание бронирования
 
-\`\`\`bash
+```bash
 POST /api/bookings
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -78,10 +78,10 @@ Content-Type: application/json
   "time_slot": "11:00-13:00",
   "participants_count": 5
 }
-\`\`\`
+```
 
 ## Тестирование
 
-\`\`\`bash
+```bash
 poetry run pytest tests/ -v
-\`\`\`
+```
