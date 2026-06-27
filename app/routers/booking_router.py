@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, date
 from app.database import get_db
 from app.models import Booking, Room, User
 from app.schemas import BookingCreate, BookingResponse
@@ -34,6 +34,22 @@ def create_booking(
     if not room:
         raise HTTPException(status_code=404, detail="Комната не найдена")
     
+    if booking_data.participants_count > room.capacity:
+        raise HTTPException(
+        status_code=400,
+        detail=f"Количество участников ({booking_data.participants_count}) превышает вместимость комнаты ({room.capacity})"
+
+    )
+    if isinstance(booking_data.date, str):
+        booking_date = datetime.strptime(booking_data.date, "%Y-%m-%d").date()
+    else:
+        booking_date = booking_data.date
+
+    if booking_date < date.today():
+        raise HTTPException(
+        status_code=400,
+        detail="Нельзя бронировать прошлые даты"
+    )
     new_start, new_end = booking_data.time_slot.split("-")
     new_start = new_start.strip()
     new_end = new_end.strip()

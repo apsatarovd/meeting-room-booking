@@ -5,6 +5,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: meeting_room_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: on-failure
 
   app:
     build: .
@@ -18,3 +23,6 @@ services:
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
     restart: on-failure
+
+volumes:
+  postgres_data:

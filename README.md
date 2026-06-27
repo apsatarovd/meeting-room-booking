@@ -28,33 +28,33 @@
 - **Тестирование:** pytest
 - **Контейнеризация:** Docker
 
+## Роли пользователей
+
+| Роль | Возможности |
+|------|-------------|
+| **Сотрудник** | Регистрация, вход, просмотр комнат, создание/отмена своих бронирований |
+| **Администратор** | Все возможности сотрудника + создание комнат, управление всеми бронированиями |
+
 ## Установка
 
-```bash
 git clone <repository-url>
 cd meeting-room-booking
 poetry install
-```
 
 ## Запуск
 
 ### Через Docker
 
-```bash
 docker-compose up --build
-```
 
 ### Локально
 
-```bash
 poetry run uvicorn app.main:app --reload
-```
 
 ## Примеры работы
 
 ### Регистрация
 
-```bash
 POST /api/auth/register
 Content-Type: application/json
 
@@ -63,11 +63,9 @@ Content-Type: application/json
   "password": "secure123",
   "full_name": "Иван Иванов"
 }
-```
 
 ### Создание бронирования
 
-```bash
 POST /api/bookings
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -78,10 +76,37 @@ Content-Type: application/json
   "time_slot": "11:00-13:00",
   "participants_count": 5
 }
-```
 
 ## Тестирование
 
-```bash
+### Запуск всех тестов
+
 poetry run pytest tests/ -v
-```
+
+### Юнит-тесты
+
+poetry run pytest tests/test_unit.py -v
+
+### Интеграционные тесты
+
+Требования: Docker должен быть запущен
+
+docker-compose up -d
+poetry run pytest tests/test_integration.py -v
+
+### Что проверяют интеграционные тесты:
+
+| Тест | Описание |
+|------|----------|
+| test_create_room_and_booking | Админ создаёт комнату и бронирует её |
+| test_user_cannot_create_room | Обычный пользователь не может создавать комнаты (403) |
+| test_booking_overlap_forbidden | Нельзя забронировать одно время дважды (400) |
+| test_capacity_exceeded | Нельзя превысить вместимость комнаты (400) |
+| test_unauthorized_access | Без токена доступ запрещён (401) |
+
+## API Документация
+
+Откройте в браузере после запуска:
+
+- Swagger UI: http://localhost:8000/docs
+- OpenAPI JSON: http://localhost:8000/openapi.json
