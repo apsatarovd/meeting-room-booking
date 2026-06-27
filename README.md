@@ -45,16 +45,19 @@ poetry install
 
 ### Через Docker
 
+```bash
 docker-compose up --build
-
+```
 ### Локально
 
+```bash
 poetry run uvicorn app.main:app --reload
-
+```
 ## Примеры работы
 
 ### Регистрация
 
+```bash
 POST /api/auth/register
 Content-Type: application/json
 
@@ -63,9 +66,10 @@ Content-Type: application/json
   "password": "secure123",
   "full_name": "Иван Иванов"
 }
-
+```
 ### Создание бронирования
 
+```bash
 POST /api/bookings
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -76,24 +80,27 @@ Content-Type: application/json
   "time_slot": "11:00-13:00",
   "participants_count": 5
 }
-
+```
 ## Тестирование
 
 ### Запуск всех тестов
 
+```bash
 poetry run pytest tests/ -v
-
+```
 ### Юнит-тесты
 
+```bash
 poetry run pytest tests/test_unit.py -v
-
+```
 ### Интеграционные тесты
 
 Требования: Docker должен быть запущен
 
+```bash
 docker-compose up -d
 poetry run pytest tests/test_integration.py -v
-
+```
 ### Что проверяют интеграционные тесты:
 
 | Тест | Описание |
@@ -109,4 +116,3 @@ poetry run pytest tests/test_integration.py -v
 Откройте в браузере после запуска:
 
 - Swagger UI: http://localhost:8000/docs
-- OpenAPI JSON: http://localhost:8000/openapi.json
