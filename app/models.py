@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -22,6 +23,12 @@ class Room(Base):
     name = Column(String, unique=True, nullable=False)
     capacity = Column(Integer, nullable=False)
     description = Column(String, nullable=True)
+    time_slots = Column(JSON, nullable=False, default=[
+    "09:00-11:00",
+    "11:00-13:00",
+    "14:00-16:00",
+    "16:00-18:00"
+])
 
     bookings = relationship("Booking", back_populates="room")
 

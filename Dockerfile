@@ -6,8 +6,10 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock ./
 
-RUN poetry config virtualenvs.create false && poetry install --without dev --no-root
+RUN poetry config virtualenvs.create false && poetry install --no-root
 
 COPY ./app ./app
+COPY ./tests ./tests
+COPY .env .env
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

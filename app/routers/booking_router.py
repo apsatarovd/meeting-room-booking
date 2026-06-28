@@ -40,11 +40,19 @@ def create_booking(
         detail=f"Количество участников ({booking_data.participants_count}) превышает вместимость комнаты ({room.capacity})"
 
     )
-    if isinstance(booking_data.date, str):
+    if booking_data.time_slot not in room.time_slots:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Временной слот '{booking_data.time_slot}' недоступен для этой комнаты. Доступные слоты: {', '.join(room.time_slots)}"
+        )
+    try:
         booking_date = datetime.strptime(booking_data.date, "%Y-%m-%d").date()
-    else:
-        booking_date = booking_data.date
-
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Неправильный формат даты. Используйте YYYY-MM-DD"
+        )
+    
     if booking_date < date.today():
         raise HTTPException(
         status_code=400,

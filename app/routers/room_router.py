@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status,  Query
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
+
 from app.database import get_db
-from app.models import Room, User
-from app.schemas import RoomCreate, RoomResponse
+from app.models import Room, User, Booking
+from app.schemas import RoomCreate, RoomResponse, RoomAvailability, BookingInfo
 from app.routers.user_router import get_current_user
 
 router = APIRouter(prefix="/api/rooms", tags=["Rooms"])
+
 
 def check_admin(user: User):
     if not user.is_admin:
@@ -18,6 +21,42 @@ def get_room_or_404(db: Session, room_id: int) -> Room:
     if not room:
         raise HTTPException(status_code=404, detail="Комната не найдена")
     return room
+
+
+@router.get("/availability", response_model=List[RoomAvailability])
+def get_rooms_availability(
+    date: date = Query(..., description="Дата должна быть написана в формате YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    rooms = db.query(Room).all()
+    
+    result = []
+    for room in rooms:
+        bookings = db.query(Booking).filter(
+            Booking.room_id == room.id,
+            Booking.date == date.isoformat()
+)       .all()
+        
+        result.append(RoomAvailability(
+            room_id=room.id,
+            room_name=room.name,
+            capacity=room.capacity,
+            description=room.description,
+            date=date.isoformat(),
+            bookings=[
+                BookingInfo(
+                    id=b.id,
+                    time_slot=b.time_slot,
+                    participants_count=b.participants_count,
+                    user_name=b.user.full_name
+                )
+                for b in bookings
+            ]
+        ))
+    
+    return result
+
 
 @router.get("", response_model=List[RoomResponse])
 def list_rooms(db: Session = Depends(get_db)):
@@ -46,6 +85,7 @@ def create_room(
     db.refresh(new_room)
     return new_room
 
+
 @router.put("/{room_id}", response_model=RoomResponse)
 def update_room(
     room_id: int,
@@ -67,6 +107,7 @@ def update_room(
     db.commit()
     db.refresh(room)
     return room
+
 
 @router.delete("/{room_id}", status_code=204)
 def delete_room(

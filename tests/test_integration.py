@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+import uuid
 
 from app.main import app
 from app.database import get_db, Base
@@ -28,6 +29,10 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+
+# Генерирует уникальное имя для комнаты, чтобы тесты не конфликтовали
+def unique_name(prefix: str = "Room") -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -80,7 +85,7 @@ def user_token(client):
     }).json()["access_token"]
 
 
-
+# админ создаёт комнату и бронирование в ней.
 def test_create_room_and_booking(client, admin_token):
     room = client.post(
         "/api/rooms",
@@ -94,14 +99,14 @@ def test_create_room_and_booking(client, admin_token):
         json={
             "room_id": room.json()["id"],
             "date": (date.today() + timedelta(days=1)).isoformat(),
-            "time_slot": "10:00-11:00",
+            "time_slot": "09:00-11:00",
             "participants_count": 3
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert room.status_code in (200, 201)
+    assert booking.status_code in (200, 201)
 
-
+# обычный пользователь не может создавать комнаты
 def test_user_cannot_create_room(client, user_token):
     response = client.post(
         "/api/rooms",
@@ -110,7 +115,7 @@ def test_user_cannot_create_room(client, user_token):
     )
     assert response.status_code == 403
 
-
+# нельзя забронировать одну комнату на одно и то же время дважды
 def test_booking_overlap_forbidden(client, admin_token):
     room = client.post(
         "/api/rooms",
@@ -122,19 +127,19 @@ def test_booking_overlap_forbidden(client, admin_token):
 
     first = client.post(
         "/api/bookings",
-        json={"room_id": room_id, "date": future, "time_slot": "10:00-11:00", "participants_count": 2},
+        json={"room_id": room_id, "date": future, "time_slot": "09:00-11:00", "participants_count": 2},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert room.status_code in (200, 201)
+    assert first.status_code in (200, 201)  
 
     second = client.post(
         "/api/bookings",
-        json={"room_id": room_id, "date": future, "time_slot": "10:00-11:00", "participants_count": 2},
+        json={"room_id": room_id, "date": future, "time_slot": "09:00-11:00", "participants_count": 2},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert second.status_code == 400
 
-
+# Проверка ограничения вместимости
 def test_capacity_exceeded(client, admin_token):
     room = client.post(
         "/api/rooms",
@@ -146,14 +151,14 @@ def test_capacity_exceeded(client, admin_token):
         json={
             "room_id": room.json()["id"],
             "date": (date.today() + timedelta(days=1)).isoformat(),
-            "time_slot": "14:00-15:00",
+            "time_slot": "14:00-16:00",
             "participants_count": 10
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert booking.status_code == 400
 
-
+# Проверка защиты от неавторизованного доступа
 def test_unauthorized_access(client):
     response = client.post(
         "/api/bookings",
@@ -165,3 +170,113 @@ def test_unauthorized_access(client):
         }
     )
     assert response.status_code == 401
+
+# пользователь не может отменить бронирование, созданное другим пользователем
+def test_user_cannot_cancel_others_booking(client, admin_token, user_token):
+
+    room = client.post(
+        "/api/rooms",
+        json={"name": "Room", "capacity": 5, "description": "test"},
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    room_id = room.json()["id"]    
+
+    future = (date.today() + timedelta(days=1)).isoformat()
+    booking = client.post(
+        "/api/bookings",
+        json={
+            "room_id": room_id,
+            "date": future,
+            "time_slot": "09:00-11:00",
+            "participants_count": 2
+        },
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    booking_id = booking.json()["id"]
+
+    response = client.delete(
+        f"/api/bookings/{booking_id}",
+        headers={"Authorization": f"Bearer {user_token}"}
+    )
+    assert response.status_code == 403
+
+# время начала должно быть раньше времени окончания
+def test_invalid_time_interval_forbidden(client, admin_token):
+    room = client.post(
+        "/api/rooms",
+        json={"name": unique_name(), "capacity": 5, "description": "test"},
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    room_id = room.json()["id"]
+    future = (date.today() + timedelta(days=1)).isoformat()
+    
+    response = client.post(
+        "/api/bookings",
+        json={
+            "room_id": room_id,
+            "date": future,
+            "time_slot": "13:00-11:00",  
+            "participants_count": 2
+        },
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+
+    assert response.status_code in (400, 422)
+
+# Проверка эндпоинта доступности комнат
+def test_room_availability_by_date(client, admin_token):
+    room = client.post(
+        "/api/rooms",
+        json={"name": unique_name(), "capacity": 5, "description": "test"},
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    room_id = room.json()["id"]
+    
+    future = (date.today() + timedelta(days=1)).isoformat()
+    
+    # Создаём бронирование
+    client.post(
+        "/api/bookings",
+        json={
+            "room_id": room_id,
+            "date": future,
+            "time_slot": "09:00-11:00",
+            "participants_count": 2
+        },
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    response = client.get(
+        f"/api/rooms/availability?date={future}",
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+# нельзя забронировать комнату на слот, которого нет в списке доступных слотов этой комнаты.
+def test_invalid_slot_forbidden(client, admin_token):
+    room = client.post(
+        "/api/rooms",
+        json={
+    "name": unique_name(),
+    "capacity": 5,
+    "description": "test",
+    "time_slots": ["09:00-11:00", "11:00-13:00"]
+    },
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    room_id = room.json()["id"]
+    future = (date.today() + timedelta(days=1)).isoformat()
+    
+    response = client.post(
+        "/api/bookings",
+        json={
+            "room_id": room_id,
+            "date": future,
+            "time_slot": "16:00-18:00",  
+            "participants_count": 2
+        },
+        headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 400

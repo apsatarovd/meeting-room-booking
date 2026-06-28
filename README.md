@@ -16,6 +16,7 @@
 - Разграничение прав доступа (сотрудник/администратор)
 - Валидация данных через Pydantic
 - Документация API
+- Автоматическое создание первого администратора при старте
 
 ## Технологический стек
 
@@ -36,11 +37,16 @@
 | **Администратор** | Все возможности сотрудника + создание комнат, управление всеми бронированиями |
 
 ## Установка
-```
+
 git clone <repository-url>
 cd meeting-room-booking
+
+# Создайте файл настроек из шаблона
+cp .env.example .env
+
+# Установите зависимости
 poetry install
-```
+
 ## Запуск
 
 ### Через Docker
@@ -48,11 +54,21 @@ poetry install
 ```bash
 docker-compose up --build
 ```
+
+При первом запуске **автоматически создаётся администратор** с данными из `.env`:
+
+| Поле | Значение |
+|------|----------|
+| **Email** | `admin@test.com` |
+| **Пароль** | `admin123` |
+
 ### Локально
 
 ```bash
+# Убедитесь, что PostgreSQL запущен
 poetry run uvicorn app.main:app --reload
 ```
+
 ## Примеры работы
 
 ### Регистрация
@@ -67,6 +83,7 @@ Content-Type: application/json
   "full_name": "Иван Иванов"
 }
 ```
+
 ### Создание бронирования
 
 ```bash
@@ -81,26 +98,30 @@ Content-Type: application/json
   "participants_count": 5
 }
 ```
+
 ## Тестирование
+
+**Важно:** Для интеграционных тестов Docker должен быть запущен (`docker-compose up -d`), так как тесты подключаются к PostgreSQL на порту 5433.
 
 ### Запуск всех тестов
 
 ```bash
 poetry run pytest tests/ -v
 ```
+
 ### Юнит-тесты
 
 ```bash
 poetry run pytest tests/test_unit.py -v
 ```
-### Интеграционные тесты
 
-Требования: Docker должен быть запущен
+### Интеграционные тесты
 
 ```bash
 docker-compose up -d
 poetry run pytest tests/test_integration.py -v
 ```
+
 ### Что проверяют интеграционные тесты:
 
 | Тест | Описание |
@@ -110,9 +131,13 @@ poetry run pytest tests/test_integration.py -v
 | test_booking_overlap_forbidden | Нельзя забронировать одно время дважды (400) |
 | test_capacity_exceeded | Нельзя превысить вместимость комнаты (400) |
 | test_unauthorized_access | Без токена доступ запрещён (401) |
+| test_user_cannot_cancel_others_booking | Пользователь не может отменить чужое бронирование (403) |
+| test_invalid_time_interval_forbidden | Нельзя указать время окончания раньше начала (400/422) |
+| test_room_availability_by_date | Проверка эндпоинта доступности комнат (200) |
+| test_invalid_slot_forbidden | Нельзя забронировать несуществующий слот (400) |
 
 ## API Документация
 
 Откройте в браузере после запуска:
 
-- Swagger UI: http://localhost:8000/docs
+- **Swagger UI:** http://localhost:8000/docs
