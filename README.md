@@ -37,24 +37,48 @@
 | **Администратор** | Все возможности сотрудника + создание комнат, управление всеми бронированиями |
 
 ## Установка
+
 ```bash
 git clone <repository-url>
 cd meeting-room-booking
 ```
-# Создайте файл настроек из шаблона
+
+### Создайте файл настроек из шаблона
+
 ```bash
 cp .env.example .env
 ```
-# Установите зависимости
+### Установите зависимости
+
 ```bash
 poetry install
 ```
+## Переменные окружения
+
+Файл `.env` создаётся из шаблона `.env.example`. В нём указаны:
+
+| Переменная | Описание | Пример |
+|------------|----------|--------|
+| `DATABASE_URL` | Строка подключения к БД | `postgresql://postgres:postgres@localhost:5433/meeting_room_db` |
+| `SECRET_KEY` | Секретный ключ для JWT | Любая случайная строка |
+| `ALGORITHM` | Алгоритм шифрования JWT | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Время жизни токена (в минутах) | `30` |
+| `ADMIN_EMAIL` | Email первого администратора | `admin@example.com` |
+| `ADMIN_PASSWORD` | Пароль первого администратора | `change-this-password` |
+| `ADMIN_NAME` | Имя первого администратора | `Администратор` |
+
 ## Запуск
 
 ### Через Docker
 
 ```bash
 docker-compose up --build
+```
+### Остановка Docker
+
+```bash
+# Остановить контейнеры (сохранить данные)
+docker-compose down
 ```
 
 При первом запуске **автоматически создаётся администратор** с данными из `.env`:
@@ -64,10 +88,18 @@ docker-compose up --build
 | **Email** | `admin@test.com` |
 | **Пароль** | `admin123` |
 
-### Локально
+#### Локально
 
 ```bash
-# Убедитесь, что PostgreSQL запущен
+# Сначала запустите базу данных
+docker-compose up -d db
+```
+### Установите зависимости 
+```bash
+poetry install
+```
+### Запустите приложение
+```bash
 poetry run uvicorn app.main:app --reload
 ```
 
@@ -100,7 +132,29 @@ Content-Type: application/json
   "participants_count": 5
 }
 ```
+### Проверка доступности комнат на дату
 
+```bash
+GET /api/rooms/availability?date=2026-06-25
+Authorization: Bearer <token>
+```
+
+Ответ содержит список комнат с указанием свободных и занятых слотов:
+
+```json
+[
+  {
+    "room_id": 1,
+    "room_name": "Переговорка",
+    "capacity": 5,
+    "date": "2026-06-25",
+    "time_slots": ["09:00-11:00", "11:00-13:00", "14:00-16:00"],
+    "booked_slots": ["09:00-11:00"],
+    "available_slots": ["11:00-13:00", "14:00-16:00"],
+    "bookings": [...]
+  }
+]
+```
 ## Тестирование
 
 **Важно:** Для интеграционных тестов Docker должен быть запущен (`docker-compose up -d`), так как тесты подключаются к PostgreSQL на порту 5433.
