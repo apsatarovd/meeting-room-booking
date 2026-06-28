@@ -38,12 +38,21 @@ def get_rooms_availability(
             Booking.date == date.isoformat()
 )       .all()
         
+        booked_slots = [b.time_slot for b in bookings]
+        available_slots = [
+            slot for slot in room.time_slots 
+            if slot not in booked_slots
+        ]
+        
         result.append(RoomAvailability(
             room_id=room.id,
             room_name=room.name,
             capacity=room.capacity,
             description=room.description,
             date=date.isoformat(),
+            time_slots=room.time_slots,  
+            booked_slots=booked_slots,    
+            available_slots=available_slots,  
             bookings=[
                 BookingInfo(
                     id=b.id,

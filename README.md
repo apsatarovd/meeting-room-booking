@@ -46,7 +46,7 @@ cd meeting-room-booking
 cp .env.example .env
 ```
 # Установите зависимости
-```bAsh
+```bash
 poetry install
 ```
 ## Запуск

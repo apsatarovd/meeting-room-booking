@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from datetime import datetime
-from typing import Optional
-from typing import List, Optional
+from typing import Optional, List
+
 
 
 class UserCreate(BaseModel):
@@ -35,6 +35,37 @@ class RoomCreate(BaseModel):
         "14:00-16:00",
         "16:00-18:00"
     ]
+
+    @field_validator("time_slots")
+    @classmethod
+    def validate_time_slots(cls, slots):
+        if not slots:
+            raise ValueError("Нужно указать хотя бы один временной слот")
+
+        if len(slots) != len(set(slots)):
+            raise ValueError("Временные слоты не должны повторяться")
+
+        for slot in slots:
+            try:
+                start, end = slot.split("-")
+                start = start.strip()
+                end = end.strip()
+                
+                start_time = datetime.strptime(start, "%H:%M")
+                end_time = datetime.strptime(end, "%H:%M")
+                
+                if start_time >= end_time:
+                    raise ValueError(
+                        f'В слоте "{slot}" время начала ({start}) должно быть раньше времени конца ({end})'
+                    )
+            except ValueError as e:
+                if "должно быть раньше" in str(e):
+                    raise ValueError(str(e))
+                raise ValueError(
+                    f'Неверный формат слота "{slot}". Используйте формат ЧЧ:ММ-ЧЧ:ММ'
+                )
+        
+        return slots
 
 
 
@@ -111,7 +142,9 @@ class RoomAvailability(BaseModel):
     capacity: int
     description: Optional[str] = None
     date: str
+    time_slots: List[str] = []  
+    booked_slots: List[str] = []  
+    available_slots: List[str] = []  
     bookings: List[BookingInfo] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
